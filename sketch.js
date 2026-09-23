@@ -1481,7 +1481,7 @@ function preload() {
   imgMountains2    = loadImage("Assets/Mountains_2.png");
   imgBigMountains2 = loadImage("Assets/Big_Mountains_2.png");
   imgDecor2        = loadImage("Assets/decor_2.png");
-  imgGrass2        = loadImage("Assets/GRASS_2.png");
+  imgGrass2        = loadImage("Assets/grass_2.png");
 
   imgChair3   = loadImage("Assets/Chair_3.png");
   imgChair23  = loadImage("Assets/Chair2_3.png");
