@@ -1452,8 +1452,6 @@ function triggerDrumBeat() {
 }
 
 function preload() {
-  handPose = ml5.handPose({ flipped: true });
-
   fontBeauty2 = loadFont("Fonts/Housemail Script Trial.otf");
 
   imgMaleHead           = loadImage("Assets/male_head.png");
@@ -1494,6 +1492,10 @@ function preload() {
   imgStageFrame = loadImage("Assets/Stage_frame.png");
 }
 
+function modelReady() {
+  console.log("ml5 Handpose Model Ready!");
+}
+
 function setup() {
   document.body.style.margin = "0";
   document.body.style.padding = "0";
@@ -1502,11 +1504,19 @@ function setup() {
 
   createCanvas(windowWidth, windowHeight);
 
-  video = createCapture(VIDEO, () => {
-    handPose.detectStart(video, results => { hands = results; });
-  });
+  video = createCapture(VIDEO);
   video.size(VIDEO_W, VIDEO_H);
   video.hide();
+
+  handPose = ml5.handpose(video, { flipHorizontal: true }, modelReady);
+  handPose.on("predict", results => {
+    hands = results.map(h => {
+      return {
+        ...h,
+        keypoints: h.landmarks ? h.landmarks.map(pt => ({ x: pt[0], y: pt[1] })) : []
+      };
+    });
+  });
 
   puppets.push(new MalePuppet(width * 0.10, "left"));
   puppets.push(new FemalePuppet(width * 0.90, "right"));
