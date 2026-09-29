@@ -7,14 +7,20 @@ let imgFemaleHead, imgFemaleUpperBody, imgFemaleLowerBody;
 let imgFemaleUpperArm, imgFemaleLowerArmOuter, imgFemaleLowerArmInner, imgFemaleLeg;
 
 let imgBg, imgBranches, imgBridge, imgCurtain;
-
 let imgBgStage, imgMountains2, imgBigMountains2, imgDecor2, imgGrass2;
-
 let imgChair3, imgChair23, imgCloset3, imgFloor3, imgLamp3, imgPicture3, imgTable3;
-
 let imgStageFrame;
 
-let video, handPose, hands = [];
+let videoIntro = null;
+let isIntroPlaying = false;
+let introAlpha = 255;
+let introFinishedTimer = 0;
+
+let videoStageWind = null;
+
+let video = null;
+let handPose, hands = [];
+let isCameraInitialized = false;
 let puppets = [];
 
 const VIDEO_W = 640;
@@ -108,7 +114,7 @@ function spawnHauntingWhisper(textList, isBrutal = false) {
 }
 
 let stage1EmbraceTimer = 0;    
-const EMBRACE_PLAY_TIME = 360;  
+const EMBRACE_PLAY_TIME = 130;  
 
 let isAutoFlying = false;
 let flightProgress = 0.0;
@@ -308,8 +314,13 @@ class Stage3PhysicsRope {
           propagateGlobalImpulse(hit.x, hit.y, impulseX, impulseY);
 
           this.hits++;
-          camShakeY = 4.5;
-          camShakeX = random(-3, 3);
+          camShakeY = 5.5;
+          camShakeX = random(-3.5, 3.5);
+
+          if (videoStageWind && videoStageWind.elt && videoStageWind.elt.paused && random() < 0.45) {
+            videoStageWind.time(0);
+            videoStageWind.play();
+          }
 
           for (let k = 0; k < 12; k++) {
             slashSparks.push({
@@ -583,13 +594,14 @@ function updateAndRenderMasterCurtain() {
   }
   noTint();
 
+  // "THE END" - Enlarged and lowered slightly
   if (isFinaleCurtainClosed && curtainProgress >= 0.98) {
     push();
     textAlign(CENTER, CENTER);
     if (fontBeauty2) textFont(fontBeauty2);
     else textFont("Georgia");
 
-    let poeticSize = constrain(width * 0.09, 80, 120);
+    let poeticSize = constrain(width * 0.115, 95, 145);
     textSize(poeticSize);
 
     let words = ["The", "End"];
@@ -598,7 +610,7 @@ function updateAndRenderMasterCurtain() {
     let currentX = startX;
     const WORD_STAGGER = 22;
     const FLY_DURATION = 45;
-    let ty = height * 0.44;
+    let ty = height * 0.52; // Lowered down slightly
 
     for (let w = 0; w < words.length; w++) {
       let word = words[w];
@@ -719,6 +731,7 @@ function setupNewStage(toStage) {
     isAutoFlying = false;
     flightProgress = 0.0;
     hugProgress = 0.0;
+    stage1EmbraceTimer = 0;
     puppets[0].restX = width * 0.10;
     puppets[1].restX = width * 0.90;
     if (puppets[1] && puppets[1].baseNeutralHead !== undefined) {
@@ -1049,8 +1062,7 @@ function handleStage2Kinematics(male, female) {
     softDriveTo(male.nodes.rElbow, male.nodes.shoulder.x + 4, lerp(male.nodes.shoulder.y, groundY - 34, 0.5), 0.2);
   }
 
-  // TƯ THẾ TRŨNG THẤP VÀ MỆT MỎI CỦA RỐI NỮ
-  const FEMALE_STAND_DROP = 28;
+  const FEMALE_STAND_DROP = 24;
   let femaleGroundStandY = groundY - 42 + FEMALE_STAND_DROP;
 
   if (p < 0.60) {
@@ -1209,14 +1221,14 @@ function drawMaleRestraintsLayer(male, isForeground = true) {
     { id: 100, type: 'floor',   gx: width * 0.12, gy: height + 60, node: 'lFoot',     minP: 0.25, tight: true,  front: false },
     { id: 101, type: 'wall',    ax: -80,          ay: height * 0.72, node: 'lowerBody', minP: 0.25, tight: false, front: true },
     { id: 102, type: 'wall',    ax: -80,          ay: height * 0.48, node: 'upperBody', minP: 0.45, tight: true,  front: false },
-    { id: 103, type: 'ceiling', cx: width * 0.18, cy: -60,             node: 'shoulder',  minP: 0.45, tight: false, front: true },
+    { id: 103, type: 'ceiling', cx: width * 0.18, cy: -60,                node: 'shoulder',  minP: 0.45, tight: false, front: true },
     { id: 104, type: 'wall',    ax: -80,          ay: height * 0.36, node: 'head',      minP: 0.60, tight: true,  front: false },
     { id: 105, type: 'wall',    ax: -80,          ay: height * 0.58, node: 'rHand',     minP: 0.60, tight: true,  front: true },
     { id: 106, type: 'floor',   gx: width * 0.04, gy: height + 60, node: 'lFoot',     minP: 0.60, tight: true,  front: false },
     { id: 107, type: 'floor',   gx: width * 0.22, gy: height + 60, node: 'rFoot',     minP: 0.60, tight: false, front: true },
     { id: 108, type: 'floor',   gx: width * 0.30, gy: height + 60, node: 'lowerBody', minP: 0.60, tight: true,  front: false },
-    { id: 109, type: 'ceiling', cx: width * 0.08, cy: -60,             node: 'upperBody', minP: 0.60, tight: false, front: true },
-    { id: 110, type: 'ceiling', cx: width * 0.28, cy: -60,             node: 'head',      minP: 0.60, tight: true,  front: false }
+    { id: 109, type: 'ceiling', cx: width * 0.08, cy: -60,                node: 'upperBody', minP: 0.60, tight: false, front: true },
+    { id: 110, type: 'ceiling', cx: width * 0.28, cy: -60,                node: 'head',      minP: 0.60, tight: true,  front: false }
   ];
 
   for (let r of leftCords) {
@@ -1377,28 +1389,59 @@ function drawGuidanceText(txt, yPos) {
   pop();
 }
 
-// KHÔI PHỤC THIẾT KẾ GỐC CỦA TRỐNG + TEXTURE VẼ TAY MỊN MÀNG TỰ NHIÊN
+// DRUM UI with near-black dimming during blackout and subtle state coloration
 function drawDrumUI() {
   let drumX = width - 150, drumY = height - 115;
   let drumR = 76 + drumPulse;
   drumPulse = lerp(drumPulse, 0, 0.12);
 
+  let p = stage2Progress;
+  let isBlackout = blackoutTimer > 0;
+
+  // Very subtle and gradual state-based color shifts
+  let baseRim = color(185, 140, 85);
+  let baseHead = color(215, 175, 125, 235);
+  let baseCenter = color(180, 30, 35, 190);
+  let baseText = color(255, 230, 180);
+
+  let rimColor, drumHeadColor, centerDecoColor, textGlow;
+  if (p < 0.25) {
+    rimColor = baseRim;
+    drumHeadColor = baseHead;
+    centerDecoColor = baseCenter;
+    textGlow = baseText;
+  } else if (p < 0.60) {
+    let t = map(p, 0.25, 0.60, 0, 1);
+    rimColor = lerpColor(baseRim, color(172, 128, 88), t * 0.45);
+    drumHeadColor = lerpColor(baseHead, color(198, 160, 122, 230), t * 0.40);
+    centerDecoColor = lerpColor(baseCenter, color(165, 32, 36, 185), t * 0.40);
+    textGlow = lerpColor(baseText, color(235, 215, 175), t * 0.35);
+  } else {
+    let t = map(p, 0.60, 1.0, 0, 1);
+    rimColor = lerpColor(color(172, 128, 88), color(155, 110, 80), t * 0.5);
+    drumHeadColor = lerpColor(color(198, 160, 122, 230), color(175, 138, 108, 225), t * 0.5);
+    centerDecoColor = lerpColor(color(165, 32, 36, 185), color(140, 28, 32, 180), t * 0.5);
+    textGlow = lerpColor(color(235, 215, 175), color(215, 190, 155), t * 0.4);
+  }
+
   push();
+  // Near-black blackout instead of absolute black
+  if (isBlackout) {
+    drawingContext.filter = "brightness(0.12) contrast(1.3) saturate(0.2)";
+  }
+
   translate(drumX, drumY);
 
-  // Vỏ trống gỗ tối màu
-  stroke(185, 140, 85);
+  stroke(rimColor);
   strokeWeight(4);
   fill(30, 18, 22, 230);
   circle(0, 0, drumR * 2);
 
-  // Mặt da trống mộc
-  fill(215, 175, 125, 235);
-  stroke(120, 80, 45);
+  fill(drumHeadColor);
+  stroke(120, 80, 45, isBlackout ? 60 : 200);
   strokeWeight(2.5);
   circle(0, 0, drumR * 1.6);
 
-  // Texture vẽ tay dạng đốm hạt mờ
   push();
   randomSeed(11);
   noStroke();
@@ -1410,29 +1453,32 @@ function drawDrumUI() {
   }
   pop();
 
-  // Tâm trống đỏ
   noStroke();
-  fill(180, 30, 35, 190);
+  fill(centerDecoColor);
   circle(0, 0, drumR * 0.55);
 
-  if (!drumClickedOnce) {
+  if (!drumClickedOnce && !isBlackout) {
     textAlign(CENTER, CENTER);
     textFont("Georgia");
     textSize(14);
-    fill(255, 230, 180);
+    fill(textGlow);
     text("DRUM", 0, -8);
     textSize(11);
-    fill(215, 175, 125);
+    fill(drumHeadColor);
     text("BEAT", 0, 10);
   }
   pop();
 
-  if (!drumClickedOnce) {
+  if (!drumClickedOnce && !isBlackout) {
     drawGuidanceText("Beat the drum to move forward...", height * 0.20);
   }
 }
 
 function mousePressed() {
+  if (isIntroPlaying && videoIntro && videoIntro.elt && videoIntro.elt.paused) {
+    videoIntro.play();
+  }
+
   if (currentStage === 2) {
     let drumX = width - 150, drumY = height - 115;
     let d = dist(mouseX, mouseY, drumX, drumY);
@@ -1458,7 +1504,7 @@ function triggerDrumBeat() {
 
   drumPulse = 18;
   let p = stage2Progress, inc, scroll;
-  if (p < 0.25)        { inc = 0.020; scroll = 80; }
+  if (p < 0.25)      { inc = 0.020; scroll = 80; }
   else if (p < 0.60) { inc = 0.013; scroll = 40; }
   else               { inc = 0.0075; scroll = 16; }
 
@@ -1487,6 +1533,38 @@ function triggerDrumBeat() {
   if (stage2Progress >= 1.0) {
     startStageTransition(3);
   }
+}
+
+function updateAndRenderStageWind() {
+  if (!videoStageWind || !videoStageWind.elt) return false;
+
+  if (curtainProgress > 0.05 || curtainState === "CLOSING" || curtainState === "CLOSED_HOLD") {
+    if (!videoStageWind.elt.paused) videoStageWind.pause();
+    return false;
+  }
+
+  if (currentStage === 2) {
+    let p = stage2Progress;
+    if (p < 0.60) {
+      if (!videoStageWind.elt.paused) videoStageWind.pause();
+    } else {
+      videoStageWind.elt.loop = true;
+      if (videoStageWind.elt.paused) videoStageWind.play();
+    }
+  } else if (currentStage === 3) {
+    if (stage3TotalDestructionTriggered) {
+      if (!videoStageWind.elt.paused) videoStageWind.pause();
+    }
+  } else {
+    if (!videoStageWind.elt.paused) videoStageWind.pause();
+  }
+
+  let isPlayingAndReady = videoStageWind.elt.readyState >= 2 && !videoStageWind.elt.paused && !videoStageWind.elt.ended;
+  if (isPlayingAndReady) {
+    image(videoStageWind, 0, 0, width, height);
+    return true; 
+  }
+  return false;
 }
 
 function preload() {
@@ -1532,7 +1610,24 @@ function preload() {
   imgStageFrame = loadImage("Assets/Stage_frame.png");
 }
 
+function initWebcamTracking() {
+  if (isCameraInitialized) return;
+  isCameraInitialized = true;
+  video = createCapture(VIDEO, () => {
+    handPose.detectStart(video, results => { hands = results; });
+  });
+  video.size(VIDEO_W, VIDEO_H);
+  video.hide();
+}
+
 function setup() {
+  let styleEl = document.createElement("style");
+  styleEl.innerHTML = `
+    #p5_loading { display: none !important; }
+    body, html { margin: 0; padding: 0; overflow: hidden; background-color: #070408; }
+  `;
+  document.head.appendChild(styleEl);
+
   document.body.style.margin = "0";
   document.body.style.padding = "0";
   document.body.style.overflow = "hidden";
@@ -1540,11 +1635,30 @@ function setup() {
 
   createCanvas(windowWidth, windowHeight);
 
-  video = createCapture(VIDEO, () => {
-    handPose.detectStart(video, results => { hands = results; });
+  videoIntro = createVideo(["Assets/stageframe.webm"], () => {
+    videoIntro.volume(0);
+    if (videoIntro.elt) {
+      videoIntro.elt.muted = true;
+      videoIntro.elt.playsInline = true;
+    }
+    videoIntro.speed(0.48);
+    videoIntro.play();
+    isIntroPlaying = true;
   });
-  video.size(VIDEO_W, VIDEO_H);
-  video.hide();
+  videoIntro.hide();
+  videoIntro.onended(() => {
+    isIntroPlaying = false;
+  });
+
+  videoStageWind = createVideo(["Assets/stagewind.webm"], () => {
+    videoStageWind.volume(0);
+    if (videoStageWind.elt) {
+      videoStageWind.elt.muted = true;
+      videoStageWind.elt.playsInline = true;
+    }
+    videoStageWind.pause();
+  });
+  videoStageWind.hide();
 
   puppets.push(new MalePuppet(width * 0.10, "left"));
   puppets.push(new FemalePuppet(width * 0.90, "right"));
@@ -1753,6 +1867,14 @@ function processStage3Destruction(slashSeg) {
         part.node.oldX += strikeDir * 16;
         propagateGlobalImpulse(part.node.x, part.node.y, strikeDir * 12, -5);
 
+        camShakeY = 5.0;
+        camShakeX = random(-3.5, 3.5);
+
+        if (videoStageWind && videoStageWind.elt && videoStageWind.elt.paused && random() < 0.40) {
+          videoStageWind.time(0);
+          videoStageWind.play();
+        }
+
         if (puppet.partCooldown === 0) {
           puppet.hitCounts[part.name]++;
           puppet.partCooldown = 8;
@@ -1769,7 +1891,7 @@ function processStage3Destruction(slashSeg) {
 
           if (puppet.hitCounts[part.name] >= part.maxHits) {
             puppet.severed[part.name] = true;
-            camShakeY = 6; camShakeX = random(-4, 4);
+            camShakeY = 7; camShakeX = random(-5, 5);
             targetZoom = 1.07;
             screenFlashAlpha = 140;
             screenFlashColor = [20, 4, 8];
@@ -1823,8 +1945,13 @@ function processStage3Destruction(slashSeg) {
     if (d < prop.radius + 35) {
       prop.hits++;
       prop.cooldown = 8;
-      camShakeY = 4.5;
-      camShakeX = random(-3, 3);
+      camShakeY = 5.5;
+      camShakeX = random(-4, 4);
+
+      if (videoStageWind && videoStageWind.elt && videoStageWind.elt.paused && random() < 0.40) {
+        videoStageWind.time(0);
+        videoStageWind.play();
+      }
 
       let isCriticalHit = prop.hits >= prop.maxHits;
       if (isCriticalHit) {
@@ -1913,12 +2040,12 @@ function updateAndRenderStage1EmbraceLove(p1, p2) {
   let midX = (p1.nodes.lowerBody.x + p2.nodes.lowerBody.x) * 0.5;
   let waistY = (p1.nodes.lowerBody.y + p2.nodes.lowerBody.y) * 0.5 + FINAL_HUG_POSE.heightOffset;
 
-  // HIỆU ỨNG TÌNH YÊU RÕ RÀNG VÀ ẤM ÁP
   push();
+  blendMode(SCREEN);
   let loveGlowR = map(hugProgress, 0.05, 1.0, 120, width * 0.85);
   let loveGrad = drawingContext.createRadialGradient(midX, waistY, 25, midX, waistY, loveGlowR);
-  loveGrad.addColorStop(0, `rgba(255, 135, 165, ${0.52 * hugProgress})`);
-  loveGrad.addColorStop(0.48, `rgba(255, 175, 110, ${0.28 * hugProgress})`);
+  loveGrad.addColorStop(0, `rgba(255, 135, 165, ${0.40 * hugProgress})`);
+  loveGrad.addColorStop(0.48, `rgba(255, 175, 110, ${0.20 * hugProgress})`);
   loveGrad.addColorStop(1, "rgba(10, 4, 8, 0)");
   drawingContext.fillStyle = loveGrad;
   rectMode(CORNER);
@@ -1940,6 +2067,7 @@ function updateAndRenderStage1EmbraceLove(p1, p2) {
   }
 
   push();
+  blendMode(SCREEN);
   noStroke();
   for (let i = stage1LoveSparks.length - 1; i >= 0; i--) {
     let sp = stage1LoveSparks[i];
@@ -1963,16 +2091,14 @@ function updateAndRenderStage1EmbraceLove(p1, p2) {
   pop();
 }
 
-// BỘ LỌC TỔNG THỂ VINTAGE WARM/ORANGE TỰ NHIÊN (KHÔNG LÀM TỐI KHUNG STAGE FRAME)
 function drawOverallVintageFilter() {
   push();
   rectMode(CORNER);
   blendMode(SOFT_LIGHT);
-  fill(255, 145, 30, 48); // Lớp màu cam ấm áp cổ điển
+  fill(255, 145, 30, 48);
   rect(0, 0, width, height);
   blendMode(BLEND);
 
-  // Vignette nhẹ góc màn hình
   let cx = width * 0.5, cy = height * 0.5;
   let maxDim = Math.max(width, height);
   let vig = drawingContext.createRadialGradient(cx, cy, maxDim * 0.35, cx, cy, maxDim * 0.75);
@@ -1986,6 +2112,10 @@ function drawOverallVintageFilter() {
 function draw() {
   background(15, 12, 20);
   imageMode(CORNER);
+
+  if (!isIntroPlaying && introFinishedTimer < 300) {
+    introFinishedTimer++;
+  }
 
   let noiseDriftX = (noise(frameCount * 0.04) - 0.5) * (currentStage === 3 ? 5 : 2);
   let noiseDriftY = (noise(frameCount * 0.04 + 100) - 0.5) * (currentStage === 3 ? 5 : 2);
@@ -2004,7 +2134,10 @@ function draw() {
 
     for (let puppet of puppets) puppet.updateControls(hands);
     if (puppets.length >= 2) handleAutonomousFlight(puppets[0], puppets[1]);
-    for (let puppet of puppets) puppet.updatePhysics();
+    for (let puppet of puppets) {
+      puppet.updatePhysics();
+      puppet.updateRopePhysics();
+    }
     if (puppets.length >= 2) lockKeyframeHugPose(puppets[0], puppets[1]);
 
     push();
@@ -2015,6 +2148,8 @@ function draw() {
     drawingContext.filter = `sepia(${sepiaVal}) brightness(${bVal}) contrast(1.05) saturate(${sVal})`;
 
     if (puppets.length >= 2) {
+      updateAndRenderStage1EmbraceLove(puppets[0], puppets[1]);
+
       puppets[0].displayStrings();
       puppets[1].displayStrings();
 
@@ -2029,14 +2164,13 @@ function draw() {
       puppets[0].displayFrontArm();
 
       drawFrontWrappedStrings(puppets[0], puppets[1]);
-      updateAndRenderStage1EmbraceLove(puppets[0], puppets[1]);
     }
     drawingContext.filter = "none";
     pop();
 
     if (imgBridge) image(imgBridge, 0, 0, width, height);
 
-    if (!userInteractedInStage1 && !isAutoFlying && hugProgress < 0.02 && curtainProgress < 0.15) {
+    if (!userInteractedInStage1 && !isAutoFlying && hugProgress < 0.02 && curtainProgress < 0.15 && !isIntroPlaying && introFinishedTimer > 90) {
       drawGuidanceText("Bring them closer together slowly...", height * 0.20);
     }
 
@@ -2057,8 +2191,9 @@ function draw() {
     translate(camShakeX + noiseDriftX, camShakeY + noiseDriftY);
 
     push();
+    // Near-black blackout instead of full black
     if (blackoutT > 0.01) {
-      drawingContext.filter = "brightness(0.06) contrast(1.5) saturate(0.25) hue-rotate(210deg)";
+      drawingContext.filter = "brightness(0.12) contrast(1.35) saturate(0.25)";
     } else {
       if (p < 0.25) {
         drawingContext.filter = "none";
@@ -2094,15 +2229,17 @@ function draw() {
 
     for (let puppet of puppets) puppet.updateControls(hands);
     handleStage2Kinematics(puppets[0], puppets[1]);
-    for (let puppet of puppets) puppet.updatePhysics();
+    for (let puppet of puppets) {
+      puppet.updatePhysics();
+      puppet.updateRopePhysics();
+    }
 
-    // 1. DÂY NẰM SAU RỐI
     drawMaleRestraintsLayer(puppets[0], false);
     drawEntangledSilkNetworkLayer(puppets[0], puppets[1], false);
 
     push();
     if (blackoutT > 0.01) {
-      drawingContext.filter = "brightness(0.08) contrast(1.4) saturate(0.35)";
+      drawingContext.filter = "brightness(0.12) contrast(1.35) saturate(0.25)";
     } else {
       if (p < 0.25) {
         drawingContext.filter = "sepia(0.10) brightness(1.04) contrast(1.03) saturate(1.06)";
@@ -2130,7 +2267,6 @@ function draw() {
 
     drawingContext.filter = "none";
 
-    // 2. DÂY NẰM TRƯỚC RỐI
     drawMaleRestraintsLayer(puppets[0], true);
     drawEntangledSilkNetworkLayer(puppets[0], puppets[1], true);
 
@@ -2139,11 +2275,12 @@ function draw() {
     if (blackoutT <= 0.01) {
       drawStage2AtmosphericDecay(p);
     } else {
+      // Atmospheric near-black veil (moody dark indigo/crimson instead of opaque black)
       push();
       let cx = width * 0.5, cy = height * 0.5;
       let grad = drawingContext.createRadialGradient(cx, cy, width * 0.12, cx, cy, width * 0.78);
-      grad.addColorStop(0, "rgba(5, 3, 10, 0.84)");
-      grad.addColorStop(1, "rgba(2, 1, 5, 0.97)");
+      grad.addColorStop(0, "rgba(8, 4, 8, 0.88)");
+      grad.addColorStop(1, "rgba(4, 2, 5, 0.93)");
       drawingContext.fillStyle = grad;
       drawingContext.fillRect(0, 0, width, height);
       pop();
@@ -2154,6 +2291,7 @@ function draw() {
     updateAndRenderWhispers();
 
     if (isBlackout) blackoutTimer--;
+    
     drawDrumUI();
   } else if (currentStage === 3) {
     push();
@@ -2178,6 +2316,7 @@ function draw() {
     for (let puppet of puppets) {
       puppet.updateControls(hands);
       puppet.updatePhysics();
+      puppet.updateRopePhysics();
     }
 
     if (!stage3TotalDestructionTriggered) {
@@ -2249,69 +2388,257 @@ function draw() {
     pop();
   }
 
-  // 1. VẼ FILTER VINTAGE VÀO NỀN SÂN KHẤU TRƯỚC (KHÔNG LÀM TỐI KHUNG)
   drawOverallVintageFilter();
 
   updateAndRenderMasterCurtain();
 
-  // 2. VẼ KHUNG STAGE FRAME Ở ĐỘ SÁNG TỰ NHIÊN, KHÔNG BỊ TỐI
-  if (imgStageFrame) {
-    push();
+  push();
+  let curtainFade = 1.0 - constrain(curtainProgress, 0, 1);
+
+  if (curtainFade > 0.01) {
+    if (currentStage === 2) {
+      let p = stage2Progress;
+      let isBlackout = blackoutTimer > 0;
+      if (isBlackout) {
+        drawingContext.filter = `brightness(${lerp(1.0, 0.12, curtainFade)}) contrast(${lerp(1.0, 1.35, curtainFade)}) saturate(0.25)`;
+      } else if (p >= 0.25) {
+        let b = lerp(1.0, map(p, 0.25, 1.0, 0.98, 0.88), curtainFade);
+        let c = lerp(1.0, map(p, 0.25, 1.0, 1.01, 1.10), curtainFade);
+        let s = lerp(1.0, map(p, 0.25, 1.0, 0.98, 0.82), curtainFade);
+        let hue = lerp(0, map(p, 0.25, 1.0, -1, -8), curtainFade);
+        let sep = lerp(0, map(p, 0.25, 1.0, 0.04, 0.18), curtainFade);
+        drawingContext.filter = `brightness(${b}) contrast(${c}) saturate(${s}) hue-rotate(${hue}deg) sepia(${sep})`;
+      } else {
+        drawingContext.filter = "none";
+      }
+    } else if (currentStage === 3) {
+      let dSat = lerp(1.0, 0.88 * (1.0 - generativeDesaturation), curtainFade);
+      let dContrast = lerp(1.0, 1.08 * generativeContrastGlitch, curtainFade);
+      let dSepia = lerp(0, 0.24, curtainFade);
+      let dBright = lerp(1.0, 0.88, curtainFade);
+      drawingContext.filter = `sepia(${dSepia}) brightness(${dBright}) contrast(${dContrast}) saturate(${dSat})`;
+    } else {
+      drawingContext.filter = "none";
+    }
+  } else {
     drawingContext.filter = "none";
-    image(imgStageFrame, 0, 0, width, height);
-    pop();
   }
 
-  if (currentStage === 1 && curtainProgress < 0.15) {
+  let isWindActive = updateAndRenderStageWind();
+
+  // Stage frame dimming during blackout
+  if (!isWindActive && imgStageFrame) {
+    if (currentStage === 2 && blackoutTimer > 0) {
+      push();
+      drawingContext.filter = "brightness(0.12) contrast(1.3) saturate(0.2)";
+      image(imgStageFrame, 0, 0, width, height);
+      pop();
+    } else {
+      image(imgStageFrame, 0, 0, width, height);
+    }
+  }
+
+  drawingContext.filter = "none";
+
+  if (isIntroPlaying) {
+    if (videoIntro && videoIntro.elt && videoIntro.elt.readyState >= 2) {
+      image(videoIntro, 0, 0, width, height);
+    } else {
+      fill(7, 4, 8);
+      noStroke();
+      rect(0, 0, width, height);
+    }
+  } else if (introAlpha > 0) {
+    introAlpha -= 10;
+    if (introAlpha > 0 && videoIntro) {
+      tint(255, introAlpha);
+      image(videoIntro, 0, 0, width, height);
+      noTint();
+    }
+  }
+  pop();
+
+  if (currentStage === 1 && curtainProgress < 0.15 && !isIntroPlaying) {
+    if (!isCameraInitialized) {
+      initWebcamTracking();
+    }
     drawWebcamPIP();
   }
 }
 
+function drawRealisticSilhouetteHand(x, y, scaleVal, flip = 1) {
+  push();
+  translate(x, y);
+  scale(flip * scaleVal, scaleVal);
+  noStroke();
+  fill(245, 210, 155, 215);
+  drawingContext.shadowColor = "rgba(215, 160, 70, 0.35)";
+  drawingContext.shadowBlur = 8;
+
+  beginShape();
+  vertex(-12, 32);
+  bezierVertex(-15, 10, -22, -4, -20, -18);
+  bezierVertex(-23, -26, -18, -32, -14, -28);
+  bezierVertex(-10, -22, -9, -15, -8, -14);
+  bezierVertex(-10, -24, -9, -40, -5, -42);
+  bezierVertex(-1, -42, -1, -26, 0, -22);
+  bezierVertex(0, -32, 1, -48, 5, -48);
+  bezierVertex(9, -48, 8, -30, 8, -20);
+  bezierVertex(9, -30, 10, -42, 14, -42);
+  bezierVertex(17, -42, 16, -26, 15, -17);
+  bezierVertex(17, -23, 19, -33, 23, -32);
+  bezierVertex(26, -30, 23, -16, 21, -6);
+  bezierVertex(20, 10, 14, 25, 10, 32);
+  endShape(CLOSE);
+  pop();
+}
+
 function drawWebcamPIP() {
-  let pipW = 180, pipH = 135;
-  let pipX = width - pipW - 20, pipY = height - pipH - 20;
+  if (!video) return;
+
+  let pipW = 192, pipH = 144;
+  let pipX = width - pipW - 26, pipY = height - pipH - 26;
 
   push();
   rectMode(CORNER);
-  stroke(185, 145, 95, 160);
-  strokeWeight(2);
-  fill(12, 8, 10, 200);
-  rect(pipX - 2, pipY - 2, pipW + 4, pipH + 4, 6);
+
+  // Weathered wooden lacquer back-plate
+  stroke(22, 12, 10);
+  strokeWeight(3);
+  fill(18, 10, 12, 245);
+  rect(pipX - 8, pipY - 8, pipW + 16, pipH + 16, 4);
+
+  // Outer antique bronze moulding
+  stroke(140, 100, 52, 240);
+  strokeWeight(3.5);
+  noFill();
+  rect(pipX - 4, pipY - 4, pipW + 8, pipH + 8, 3);
+
+  // Inner filigree gold rim
+  stroke(215, 175, 105, 220);
+  strokeWeight(1.2);
+  rect(pipX, pipY, pipW, pipH, 1);
+
+  // Chinese Opera Shadow Theatre Corner Brackets & Rivets
+  let cLen = 14;
+  stroke(245, 210, 135, 255);
+  strokeWeight(2.8);
+  // Top-left
+  line(pipX - 6, pipY - 6, pipX - 6 + cLen, pipY - 6);
+  line(pipX - 6, pipY - 6, pipX - 6, pipY - 6 + cLen);
+  // Top-right
+  line(pipX + pipW + 6, pipY - 6, pipX + pipW + 6 - cLen, pipY - 6);
+  line(pipX + pipW + 6, pipY - 6, pipX + pipW + 6, pipY - 6 + cLen);
+  // Bottom-left
+  line(pipX - 6, pipY + pipH + 6, pipX - 6 + cLen, pipY + pipH + 6);
+  line(pipX - 6, pipY + pipH + 6, pipX - 6, pipY + pipH + 6 - cLen);
+  // Bottom-right
+  line(pipX + pipW + 6, pipY + pipH + 6, pipX + pipW + 6 - cLen, pipY + pipH + 6);
+  line(pipX + pipW + 6, pipY + pipH + 6, pipX + pipW + 6, pipY + pipH + 6 - cLen);
+
+  // Antique corner studs
+  noStroke();
+  fill(235, 195, 120);
+  circle(pipX - 3, pipY - 3, 3.5);
+  circle(pipX + pipW + 3, pipY - 3, 3.5);
+  circle(pipX - 3, pipY + pipH + 3, 3.5);
+  circle(pipX + pipW + 3, pipY + pipH + 3, 3.5);
 
   drawingContext.save();
   drawingContext.beginPath();
-  drawingContext.roundRect(pipX, pipY, pipW, pipH, 4);
+  drawingContext.rect(pipX, pipY, pipW, pipH);
   drawingContext.clip();
 
+  // Draw camera with antique daguerreotype sepia & grain filter
   push();
   translate(pipX + pipW, pipY);
   scale(-1, 1);
-  tint(225, 185, 135, 235);
+  drawingContext.filter = "sepia(0.65) contrast(1.15) brightness(0.92)";
   image(video, 0, 0, pipW, pipH);
+  drawingContext.filter = "none";
   pop();
-  noTint();
 
-  if (!userInteractedInStage1) {
-    let t = frameCount * 0.05;
-    let ringRadius = 24 + sin(t * 1.5) * 8;
-    let ringAlpha = map(sin(t * 1.5), -1, 1, 60, 200);
+  // Heavy Aged Parchment Vignette inside viewport
+  let pipGrad = drawingContext.createRadialGradient(pipX + pipW * 0.5, pipY + pipH * 0.5, pipW * 0.28, pipX + pipW * 0.5, pipY + pipH * 0.5, pipW * 0.68);
+  pipGrad.addColorStop(0, "rgba(240, 190, 110, 0.08)");
+  pipGrad.addColorStop(0.65, "rgba(80, 42, 18, 0.35)");
+  pipGrad.addColorStop(1, "rgba(16, 6, 8, 0.78)");
+  drawingContext.fillStyle = pipGrad;
+  rect(pipX, pipY, pipW, pipH);
+
+  // Delicate shadow puppet loom / horizontal scanline texture
+  stroke(35, 18, 22, 35);
+  strokeWeight(1);
+  for (let ly = pipY; ly < pipY + pipH; ly += 3.5) {
+    line(pipX, ly, pipX + pipW, ly);
+  }
+
+  // REFINED HAND TRACKING: Elegant antique gold/ivory joint markers
+  if (hands && hands.length > 0) {
+    push();
+    for (let h of hands) {
+      if (!h.keypoints) continue;
+      // Thread bone linkages
+      stroke(225, 185, 110, 140);
+      strokeWeight(1.4);
+      let connections = [
+        [0, 1], [1, 2], [2, 3], [3, 4],
+        [0, 5], [5, 6], [6, 7], [7, 8],
+        [5, 9], [9, 10], [10, 11], [11, 12],
+        [9, 13], [13, 14], [14, 15], [15, 16],
+        [13, 17], [17, 18], [18, 19], [19, 20], [0, 17]
+      ];
+      for (let [i1, i2] of connections) {
+        let p1 = h.keypoints[i1], p2 = h.keypoints[i2];
+        if (p1 && p2) {
+          let x1 = map(p1.x, 0, VIDEO_W, pipX, pipX + pipW);
+          let y1 = map(p1.y, 0, VIDEO_H, pipY, pipY + pipH);
+          let x2 = map(p2.x, 0, VIDEO_W, pipX, pipX + pipW);
+          let y2 = map(p2.y, 0, VIDEO_H, pipY, pipY + pipH);
+          line(x1, y1, x2, y2);
+        }
+      }
+
+      // Joint articulation beads (Aged Gold with warm amber glow)
+      noStroke();
+      for (let kp of h.keypoints) {
+        let kpx = map(kp.x, 0, VIDEO_W, pipX, pipX + pipW);
+        let kpy = map(kp.y, 0, VIDEO_H, pipY, pipY + pipH);
+
+        drawingContext.shadowColor = "rgba(240, 180, 80, 0.75)";
+        drawingContext.shadowBlur = 6;
+        fill(215, 165, 85, 235);
+        circle(kpx, kpy, 4.2);
+
+        fill(255, 245, 215, 255);
+        circle(kpx, kpy, 1.8);
+      }
+    }
+    drawingContext.shadowBlur = 0;
+    pop();
+  }
+
+  // Realistic hands guide moving toward each other
+  let hasValidHands = hands && hands.length > 0;
+  if (!userInteractedInStage1 && !hasValidHands) {
+    let t = frameCount * 0.04;
+    let cycle = (sin(t) + 1) * 0.5;
+    let moveRange = pipW * 0.22;
+    let leftHandX = pipX + pipW * 0.25 + cycle * moveRange;
+    let rightHandX = pipX + pipW * 0.75 - cycle * moveRange;
+    let handsY = pipY + pipH * 0.50 + sin(t * 2) * 3;
 
     push();
-    translate(pipX + pipW * 0.5, pipY + pipH * 0.5);
-    noFill();
-    stroke(255, 220, 140, ringAlpha);
-    strokeWeight(1.8);
-    ellipse(0, 0, ringRadius * 2, ringRadius * 2);
-
-    fill(255, 220, 140, ringAlpha * 1.2);
-    noStroke();
-    ellipse(0, 0, 7, 7);
+    drawRealisticSilhouetteHand(leftHandX, handsY, 0.45, 1);
+    drawRealisticSilhouetteHand(rightHandX, handsY, 0.45, -1);
 
     textAlign(CENTER, TOP);
     textFont("Georgia");
     textSize(11);
-    fill(255, 235, 190, ringAlpha);
-    text("Raise Hand Here", 0, 26);
+    drawingContext.shadowColor = "rgba(10, 4, 8, 0.9)";
+    drawingContext.shadowBlur = 6;
+    fill(245, 220, 170, 225);
+    text("Bring Hands Together", pipX + pipW * 0.5, pipY + pipH - 24);
     pop();
   }
 
@@ -2487,9 +2814,9 @@ function lockKeyframeHugPose(p1, p2) {
     p1.nodes.lHand.x = midX - cfg.inHandGap; p1.nodes.lHand.y = inHandY;
     p2.nodes.lHand.x = midX + cfg.inHandGap; p2.nodes.lHand.y = inHandY;
     p1.nodes.rHand.x = maleHandX;             p1.nodes.rHand.y = maleHandY;
-    p1.nodes.rElbow.x = maleElbowX;          p1.nodes.rElbow.y = maleElbowY;
-    p2.nodes.rHand.x = femaleHandX;          p2.nodes.rHand.y = femaleHandY;
-    p2.nodes.rElbow.x = femaleElbowX;        p2.nodes.rElbow.y = femaleElbowY;
+    p1.nodes.rElbow.x = maleElbowX;           p1.nodes.rElbow.y = maleElbowY;
+    p2.nodes.rHand.x = femaleHandX;           p2.nodes.rHand.y = femaleHandY;
+    p2.nodes.rElbow.x = femaleElbowX;         p2.nodes.rElbow.y = femaleElbowY;
 
     let freezeList = [
       p1.nodes.lHand, p1.nodes.rHand, p1.nodes.lElbow, p1.nodes.rElbow,
@@ -2687,39 +3014,142 @@ class Stick {
 
 class StringConstraint {
   constructor(controller, node, length) {
-    this.controller = controller; this.node = node; this.length = length;
+    this.controller = controller; 
+    this.node = node; 
+    this.length = length;
+    this.pts = [];
+    this.segments = 12;
+    this.severed = false;
+    this.cutIndex = -1;
+    this.recoilTimer = 0;
+    for (let i = 0; i < this.segments; i++) {
+      let u = i / (this.segments - 1);
+      let x = lerp(this.controller.x, this.node.x, u);
+      let y = lerp(-120, this.node.y, u);
+      this.pts.push({ x: x, y: y, ox: x, oy: y });
+    }
   }
+
   solve() {
-    let dx = this.node.x - this.controller.x; let dy = this.node.y - this.controller.y;
+    if (this.severed) return;
+    let dx = this.node.x - this.controller.x; 
+    let dy = this.node.y - this.controller.y;
     let distVal = Math.sqrt(dx * dx + dy * dy);
     if (distVal > this.length) {
       let diff = (this.length - distVal) / distVal;
-      this.node.x += dx * diff; this.node.y += dy * diff;
+      this.node.x += dx * diff; 
+      this.node.y += dy * diff;
     }
   }
-  display() {
-    let dx = this.node.x - this.controller.x; let dy = this.node.y - this.controller.y;
-    let distVal = Math.sqrt(dx * dx + dy * dy);
-    noFill();
-    if (distVal < this.length - 2) {
-      let sag = (this.length - distVal) * 0.38;
-      let midX = (this.controller.x + this.node.x) * 0.5;
-      let midY = (this.controller.y + this.node.y) * 0.5 + sag;
-      stroke(240, 240, 245, 40);
-      strokeWeight(1.8);
-      bezier(this.controller.x, this.controller.y, this.controller.x, this.controller.y + sag * 0.6, midX, midY, this.node.x, this.node.y);
-      stroke(255, 255, 255, 85);
-      strokeWeight(0.9);
-      bezier(this.controller.x, this.controller.y, this.controller.x, this.controller.y + sag * 0.6, midX, midY, this.node.x, this.node.y);
+
+  updatePhysics() {
+    let topX = this.controller.x;
+    let topY = -120;
+
+    if (!this.severed) {
+      this.pts[0].x = topX;
+      this.pts[0].y = topY;
+      this.pts[this.segments - 1].x = this.node.x;
+      this.pts[this.segments - 1].y = this.node.y;
+
+      for (let i = 1; i < this.segments - 1; i++) {
+        let p = this.pts[i];
+        let vx = (p.x - p.ox) * 0.92;
+        let vy = (p.y - p.oy) * 0.92;
+        p.ox = p.x;
+        p.oy = p.y;
+        p.x += vx;
+        p.y += vy + 0.35;
+      }
+
+      let totalD = dist(topX, topY, this.node.x, this.node.y);
+      let segLen = totalD / (this.segments - 1);
+
+      for (let iter = 0; iter < 5; iter++) {
+        this.pts[0].x = topX;
+        this.pts[0].y = topY;
+        this.pts[this.segments - 1].x = this.node.x;
+        this.pts[this.segments - 1].y = this.node.y;
+
+        for (let i = 0; i < this.segments - 1; i++) {
+          let p1 = this.pts[i];
+          let p2 = this.pts[i + 1];
+          let dx = p2.x - p1.x;
+          let dy = p2.y - p1.y;
+          let d = Math.sqrt(dx * dx + dy * dy) || 0.0001;
+          if (d > segLen) {
+            let diff = (d - segLen) / d;
+            let w1 = (i === 0) ? 0 : 0.5;
+            let w2 = (i + 1 === this.segments - 1) ? 0 : 0.5;
+            p1.x += dx * diff * w1;
+            p1.y += dy * diff * w1;
+            p2.x -= dx * diff * w2;
+            p2.y -= dy * diff * w2;
+          }
+        }
+      }
     } else {
-      let vib = sin(frameCount * 0.4 + this.node.x * 0.1) * 0.7;
-      stroke(240, 240, 245, 45);
-      strokeWeight(1.8);
-      line(this.controller.x, this.controller.y, this.node.x + vib, this.node.y);
-      stroke(255, 255, 255, 95);
-      strokeWeight(0.9);
-      line(this.controller.x, this.controller.y, this.node.x + vib, this.node.y);
+      this.recoilTimer++;
+      this.pts[0].x = topX;
+      this.pts[0].y = topY;
+      this.pts[this.segments - 1].x = this.node.x;
+      this.pts[this.segments - 1].y = this.node.y;
+
+      for (let i = 1; i < this.segments - 1; i++) {
+        let p = this.pts[i];
+        let vx = (p.x - p.ox) * 0.88;
+        let vy = (p.y - p.oy) * 0.88;
+        p.ox = p.x;
+        p.oy = p.y;
+        p.x += vx;
+        p.y += vy + 0.52;
+      }
     }
+  }
+
+  display() {
+    push();
+    noFill();
+    strokeCap(ROUND); 
+    strokeJoin(ROUND);
+
+    let renderPath = (ptsArray) => {
+      if (ptsArray.length < 2) return;
+      stroke(50, 32, 18, 90);
+      strokeWeight(1.8);
+      beginShape();
+      curveVertex(ptsArray[0].x, ptsArray[0].y);
+      for (let p of ptsArray) curveVertex(p.x, p.y);
+      curveVertex(ptsArray[ptsArray.length - 1].x, ptsArray[ptsArray.length - 1].y);
+      endShape();
+
+      stroke(152, 108, 68, 230);
+      strokeWeight(1.1);
+      beginShape();
+      curveVertex(ptsArray[0].x, ptsArray[0].y);
+      for (let p of ptsArray) curveVertex(p.x, p.y);
+      curveVertex(ptsArray[ptsArray.length - 1].x, ptsArray[ptsArray.length - 1].y);
+      endShape();
+
+      stroke(205, 168, 122, 185);
+      strokeWeight(0.5);
+      beginShape();
+      curveVertex(ptsArray[0].x, ptsArray[0].y);
+      for (let p of ptsArray) curveVertex(p.x, p.y);
+      curveVertex(ptsArray[ptsArray.length - 1].x, ptsArray[ptsArray.length - 1].y);
+      endShape();
+    };
+
+    if (!this.severed) {
+      renderPath(this.pts);
+    } else {
+      let cutAt = constrain(this.cutIndex, 1, this.segments - 2);
+      let topHalf = this.pts.slice(0, cutAt + 1);
+      let botHalf = this.pts.slice(cutAt);
+      renderPath(topHalf);
+      renderPath(botHalf);
+    }
+    pop();
   }
 }
 
@@ -2940,6 +3370,12 @@ class MalePuppet {
       for (let n of this.nodesList) {
         if (n) { n.x = constrain(n.x, 20, width - 20); n.y = constrain(n.y, height * 0.05, height - 15); }
       }
+    }
+  }
+
+  updateRopePhysics() {
+    for (let str of this.strings) {
+      if (str && str.updatePhysics) str.updatePhysics();
     }
   }
 
@@ -3240,6 +3676,12 @@ class FemalePuppet {
       for (let n of this.nodesList) {
         if (n) { n.x = constrain(n.x, 20, width - 20); n.y = constrain(n.y, height * 0.05, height - 15); }
       }
+    }
+  }
+
+  updateRopePhysics() {
+    for (let str of this.strings) {
+      if (str && str.updatePhysics) str.updatePhysics();
     }
   }
 
